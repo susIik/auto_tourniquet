@@ -8,15 +8,22 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SD
 #define TXD2 6
 
 byte get_data[] = { 0xFD, 0x00, 0x00, 0x00, 0x00, 0x00 };
-byte calib[] = { 0xFE, 0x7A, 0x47, 0x46, 0x00, 0x00 }; 
+byte calib[] = { 0xFE, 0x7A, 0x47, 0x46, 0x00, 0x00 };
+int hrData[] = {255, 255, 255};
 
 unsigned long startMillis; 
 unsigned long currentMillis;
+unsigned long activateMillis;
 
 HardwareSerial senSerial(0);
 
-void readHrSensor(int *hrData);
+// Functions
+void readHrSensor();
 bool calibrateSensor();
+void updateScreen();
+void checkButtons();
+void checkHealth();
+
 
 void setup() {
   u8g2.begin();
@@ -39,14 +46,13 @@ void setup() {
   startMillis = millis();
 }
 
+
 void loop() {
   u8g2.clearBuffer(); // clear the internal memory
 
-  int hrData[] = {255, 255, 255};
-
   currentMillis = millis();
   if (currentMillis - startMillis >= 1000) {
-    readHrSensor(hrData);
+    readHrSensor();
     String mes1 = "Heart rate: " + (String)hrData[2];
     String mes2 = "Blood p H/L: " + (String)hrData[0] + "/" + (String)hrData[1];
     Serial.println(mes1);
@@ -54,7 +60,10 @@ void loop() {
     Serial.println("-------------------------------");
     startMillis = currentMillis;  
   }
- 
+
+
+  u8g2.setPowerSave(0);
+  updateScreen();
 
   //u8g2.drawStr(0, 20, mes1.c_str());
   //u8g2.drawStr(0, 40, mes2.c_str());	// write something to the internal memory
@@ -69,7 +78,7 @@ void loop() {
 
 
 // Read sensor data
-void readHrSensor(int *hrData) {
+void readHrSensor() {
   senSerial.write(get_data, sizeof(get_data));
   while (!senSerial.available());
 
@@ -107,4 +116,42 @@ bool calibrateSensor() {
     }
   }
   return false;
+}
+
+
+// Update screen
+void updateScreen() {
+  u8g2.setFont(u8g2_font_6x13_tf);
+  u8g2.clearBuffer();
+  String minutes = (String)((millis() - activateMillis) / 1000 / 60);
+  u8g2.drawStr(0, 40, minutes.c_str());
+  u8g2.sendBuffer();
+}
+
+
+// Check buttons
+void checkButtons() {
+  if (digitalRead(1)) {
+    u8g2.setPowerSave(0);
+    updateScreen();
+  } else {
+    u8g2.setPowerSave(1);
+  }
+
+  if (digitalRead(2)) {
+    // Stop motors
+  }
+
+  if (digitalRead(3)) {
+    // Motor +
+  } else if (digitalRead(4)) {
+    // Motor -
+  }
+  
+}
+
+
+// Check health
+void checkHealth() {
+
 }
