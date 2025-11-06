@@ -1,11 +1,14 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <HardwareSerial.h>
-
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);  // High speed I2C
+#include <Wire.h>
 
 #define RXD2 5
 #define TXD2 6
+#define SDA_PIN 20
+#define SCL_PIN 19
+
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ SCL_PIN, /* data=*/ SDA_PIN);  // High speed I2C
 
 byte get_data[] = { 0xFD, 0x00, 0x00, 0x00, 0x00, 0x00 };
 byte calib[] = { 0xFE, 0x7A, 0x47, 0x46, 0x00, 0x00 };
@@ -25,15 +28,23 @@ void checkButtons();
 void checkHealth();
 
 
+
 void setup() {
+  Wire.begin(SDA_PIN, SCL_PIN);
+
+  // Screen setup
   u8g2.begin();
   u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.clearBuffer();
-  
+
   Serial.begin(115200);
   senSerial.begin(115200, SERIAL_8N1, RXD2, TXD2);
 
+  // PWM setup for motor
+  ledcAttach(10, 20000, 11);
+  ledcWrite(0, 2000);
 
+  // Sensor calibration
   if(calibrateSensor()) {
     u8g2.drawStr(0, 40, "Calibrate Success");
   } else {
@@ -43,7 +54,10 @@ void setup() {
   delay(3000);
   u8g2.setPowerSave(1);
 
+  // Setup counting
   startMillis = millis();
+  activateMillis = millis(); // Remove from here!!!!!*/
+  
 }
 
 
