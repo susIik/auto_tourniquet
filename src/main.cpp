@@ -45,18 +45,20 @@ void setup() {
   ledcWrite(0, 2000);
 
   // Sensor calibration
-  if(calibrateSensor()) {
+  /* if(calibrateSensor()) {
     u8g2.drawStr(0, 40, "Calibrate Success");
   } else {
     u8g2.drawStr(0, 40, "Calibrate Failed");
   }
   u8g2.sendBuffer();
   delay(3000);
-  u8g2.setPowerSave(1);
+  u8g2.setPowerSave(1); */
 
   // Setup counting
   startMillis = millis();
   activateMillis = millis(); // Remove from here!!!!!*/
+
+  pinMode(10, INPUT);
   
 }
 
@@ -65,7 +67,8 @@ void loop() {
   u8g2.clearBuffer(); // clear the internal memory
 
   currentMillis = millis();
-  if (currentMillis - startMillis >= 1000) {
+
+  /* if (currentMillis - startMillis >= 1000) {
     readHrSensor();
     String mes1 = "Heart rate: " + (String)hrData[2];
     String mes2 = "Blood p H/L: " + (String)hrData[0] + "/" + (String)hrData[1];
@@ -74,6 +77,11 @@ void loop() {
     Serial.println("-------------------------------");
     startMillis = currentMillis;  
   }
+ */
+
+  checkButtons();
+  Serial.println("noice");
+
 
 
   u8g2.setPowerSave(0);
@@ -152,8 +160,11 @@ void checkButtons() {
     u8g2.setPowerSave(1);
   }
 
-  if (digitalRead(2)) {
+  if (!digitalRead(10)) {
     // Stop motors
+    rgbLedWrite(8, 255, 0, 0);
+  } else {
+    rgbLedWrite(8, 0, 0, 255);
   }
 
   if (digitalRead(3)) {
