@@ -7,6 +7,8 @@
 #define TXD2 6
 #define SDA_PIN 20
 #define SCL_PIN 19
+#define SCREEN_ADR 0x3C
+#define SPO2_ADR 0x57
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ SCL_PIN, /* data=*/ SDA_PIN);  // High speed I2C
 
