@@ -19,6 +19,8 @@
 #define IPROPI 3
 #define DRIVE_PH 23
 #define DRIVE_EN 22
+#define SOLENOID 18
+#define VIBRATE 19 
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ SCL_PIN, /* data=*/ SDA_PIN);  // High speed I2C
 
@@ -60,6 +62,8 @@ void motorWakeUp();
 void motorOff();
 void tightenStrap();
 float strapTorque();
+void triggerSolenoid(int a);
+void vibrate();
 
 
 void setup() {
@@ -106,6 +110,8 @@ void setup() {
   // Pins setup
   pinMode(N_SLEEP, OUTPUT);
   pinMode(DRIVE_PH, OUTPUT);
+  pinMode(SOLENOID, OUTPUT);
+  pinMode(VIBRATE, OUTPUT);
 }
 
 
@@ -281,6 +287,7 @@ void readSpSensor(int32_t n) {
 // Drive motor
 void driveMotor(int direction) {
   motorWakeUp();
+  triggerSolenoid(1);
   if (direction == 1) {
     digitalWrite(DRIVE_PH, HIGH); // Set direction +
   } else {
@@ -306,6 +313,7 @@ void motorWakeUp() {
 // Turn motor off
 void motorOff() {
   ledcWrite(DRIVE_EN, 0);
+  triggerSolenoid(0);
   digitalWrite(N_SLEEP, LOW);
 }
 
@@ -328,11 +336,34 @@ void calibrateHrSensor() {
 
 // Tighten Strap
 void tightenStrap() {
-
+  vibrate();
+  driveMotor(1);
+  while (strapTorque() < 0.38) {
+    checkButtons();
+  }
+  motorOff();
 }
 
 
 // Calculate strap torque
 float strapTorque() {
-  return analogRead(IPROPI) * 4095 * k_t; // must multiply by something ADC value != Current value
+  return analogRead(IPROPI) * 16 / 3760 * k_t; // must multiply by something ADC value != Current value
+}
+
+
+// Activate solenoid
+void triggerSolenoid(int a) {
+  if (a == 1) {
+    digitalWrite(SOLENOID, HIGH);
+  } else {
+    digitalWrite(SOLENOID, LOW);
+  }
+}
+
+
+// Vibrate
+void vibrate() {
+  digitalWrite(VIBRATE, HIGH);
+  delay(500);
+  digitalWrite(VIBRATE, LOW);
 }
