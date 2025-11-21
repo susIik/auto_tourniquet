@@ -14,16 +14,25 @@
 #define BUTTON_PLUSS 10
 #define BUTTON_MINUS 11
 #define BUTTON_SCREEN 8
+#define N_SLEEP 21
+#define N_FAULT 20
+#define IPROPI 3
+#define DRIVE_PH 23
+#define DRIVE_EN 22
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ SCL_PIN, /* data=*/ SDA_PIN);  // High speed I2C
 
 byte get_data[] = { 0xFD, 0x00, 0x00, 0x00, 0x00, 0x00 };
 byte calib[] = { 0xFE, 0x7A, 0x47, 0x46, 0x00, 0x00 };
-int hrData[] = { 255, 255, 255 };
+int hrData[] = { 255, 255, 255 }; // High, Low, HR
 
 unsigned long startMillis; 
 unsigned long currentMillis;
 unsigned long activateMillis;
+unsigned long motorMillis;
+
+float k_t = 0.44 / 2.7; // Torque constant
+int a_ipropi = 4750;
 
 // particlesensor test stuff
 MAX30105 particleSensor;
@@ -40,15 +49,22 @@ HardwareSerial senSerial(0);
 
 // Functions
 void readHrSensor();
-bool calibrateSensor();
-void updateScreen();
+bool calibrateHrSequence();
+void calibrateHrSensor();
+void showTime();
 void checkButtons();
 void checkHealth();
 void readSpSensor(int32_t n);
 void driveMotor(int direction);
+void motorWakeUp();
+void motorOff();
+void tightenStrap();
+float strapTorque();
 
 
 void setup() {
+
+  //I2C setup
   Wire.begin(SDA_PIN, SCL_PIN);
 
   // Screen setup
@@ -56,22 +72,17 @@ void setup() {
   u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.clearBuffer();
 
+
+  // Hr sensor and Serial Monitor setup
   Serial.begin(115200);
   senSerial.begin(115200, SERIAL_8N1, RXD2, TXD2);
 
   // PWM setup for motor
-  ledcAttach(10, 20000, 11);
-  ledcWrite(0, 2000);
+  ledcAttach(DRIVE_EN, 20000, 11);
+  ledcWrite(DRIVE_EN, 0); // MAX 2048 (2^11)
 
   // Sensor calibration
-  /* if(calibrateSensor()) {
-    u8g2.drawStr(0, 40, "Calibrate Success");
-  } else {
-    u8g2.drawStr(0, 40, "Calibrate Failed");
-  }
-  u8g2.sendBuffer();
-  delay(3000);
-  u8g2.setPowerSave(1); */
+  // calibrateHrSensor();
 
   // Setup counting
   startMillis = millis();
@@ -90,7 +101,11 @@ void setup() {
   
   particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
   readSpSensor(bufferLength);
-  
+
+
+  // Pins setup
+  pinMode(N_SLEEP, OUTPUT);
+  pinMode(DRIVE_PH, OUTPUT);
 }
 
 
@@ -98,6 +113,8 @@ void loop() {
   //u8g2.clearBuffer(); // clear the internal memory
 
   currentMillis = millis();
+
+  
 
   /* if (currentMillis - startMillis >= 1000) {
     readHrSensor();
@@ -149,7 +166,7 @@ void readHrSensor() {
 
 
 // Calibrate sensor
-bool calibrateSensor() {
+bool calibrateHrSequence() {
   senSerial.write(calib, sizeof(calib)); // Start calibration sequence
 
   for (size_t i = 0; i < 50; i++) { // Try to calibrate for 50 cycles
@@ -174,8 +191,8 @@ bool calibrateSensor() {
 }
 
 
-// Update screen
-void updateScreen() {
+// Show time
+void showTime() {
   u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.clearBuffer();
   String minutes = (String)((millis() - activateMillis) / 1000 / 60) + " min"; // Calculate minutes passed
@@ -197,17 +214,18 @@ void checkButtons() {
   
   if (!digitalRead(BUTTON_SCREEN)) {
     u8g2.setPowerSave(0); // Wake up screen
-    updateScreen();
+    showTime();
   } else {
     u8g2.setPowerSave(1); // Screen to sleep mode
   }
 
   if (!digitalRead(BUTTON_PLUSS)) {
-    // Motor +
+    driveMotor(1); // Motor +
   } else if (!digitalRead(BUTTON_MINUS)) {
-    // Motor -
+    driveMotor(0); // Motor -
+  } else {
+    motorOff();
   }
-  
 }
 
 
@@ -262,10 +280,59 @@ void readSpSensor(int32_t n) {
 
 // Drive motor
 void driveMotor(int direction) {
+  motorWakeUp();
   if (direction == 1) {
-    // Set direction positive
+    digitalWrite(DRIVE_PH, HIGH); // Set direction +
   } else {
-    // Set direction negative
+    digitalWrite(DRIVE_PH, LOW); // Set direction -
   }
   // Set pwm value
+  ledcWrite(DRIVE_EN, 1000); // Use half of the speed
+}
+
+
+// Wake up motors
+void motorWakeUp() {
+  if (digitalRead(N_SLEEP) == LOW) {
+    digitalWrite(N_SLEEP, HIGH);
+    delay(1);
+    digitalWrite(N_SLEEP, LOW);
+    delayMicroseconds(25);
+    digitalWrite(N_SLEEP, HIGH);
+  }
+}
+
+
+// Turn motor off
+void motorOff() {
+  ledcWrite(DRIVE_EN, 0);
+  digitalWrite(N_SLEEP, LOW);
+}
+
+
+// CalibrateHrSensor
+void calibrateHrSensor() {
+  u8g2.setFont(u8g2_font_6x13_tf);
+  u8g2.clearBuffer();
+  u8g2.setPowerSave(0);
+  if(calibrateHrSequence()) {
+    u8g2.drawStr(0, 40, "Calibrate Success");
+  } else {
+    u8g2.drawStr(0, 40, "Calibrate Failed");
+  }
+  u8g2.sendBuffer();
+  delay(3000);
+  u8g2.setPowerSave(1);
+}
+
+
+// Tighten Strap
+void tightenStrap() {
+
+}
+
+
+// Calculate strap torque
+float strapTorque() {
+  return analogRead(IPROPI) * 4095 * k_t; // must multiply by something ADC value != Current value
 }
