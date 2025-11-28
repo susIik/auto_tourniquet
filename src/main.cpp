@@ -1,85 +1,4 @@
-#include <Arduino.h>
-#include <U8g2lib.h>
-#include <HardwareSerial.h>
-#include <Wire.h>
-#include "MAX30105.h"
-#include "spo2_algorithm.h"
-
-#define RXD2 4
-#define TXD2 5
-#define SDA_PIN 6
-#define SCL_PIN 7
-#define SPO_BUFFER 100
-#define BUTTON_POW 9
-#define BUTTON_PLUSS 10
-#define BUTTON_MINUS 11
-#define BUTTON_SCREEN 8
-#define N_SLEEP 21
-#define N_FAULT 20
-#define IPROPI 3
-#define DRIVE_PH 23
-#define DRIVE_EN 22
-#define SOLENOID 18
-#define VIBRATE 19 
-
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ SCL_PIN, /* data=*/ SDA_PIN);  // High speed I2C
-
-byte get_data[] = { 0xFD, 0x00, 0x00, 0x00, 0x00, 0x00 };
-byte calib[] = { 0xFE, 0x7A, 0x47, 0x46, 0x00, 0x00 };
-int hrData[] = { 255, 255, 255 }; // High, Low, HR
-
-unsigned long startMillis; 
-unsigned long currentMillis;
-unsigned long activateMillis;
-unsigned long motorMillis;
-
-float k_t = 0.44 / 2.7; // Torque constant
-int activation = 0; // 0 - off, 1 - tightening in progress, 2 - tightened
-
-// particlesensor test stuff
-MAX30105 particleSensor;
-
-uint32_t irBuffer[SPO_BUFFER]; //infrared LED sensor data
-uint32_t redBuffer[SPO_BUFFER];  //red LED sensor data
-int32_t bufferLength = SPO_BUFFER; //data length
-int32_t spo2; //SPO2 value
-int8_t validSPO2; //indicator to show if the SPO2 calculation is valid
-int32_t heartRate; //heart rate value
-int8_t validHeartRate; //indicator to show if the heart rate calculation is valid
-
-HardwareSerial senSerial(0);
-
-// Functions
-void readHrSensor();
-bool calibrateHrSequence();
-void calibrateHrSensor();
-void showTime();
-void checkButtons();
-void checkHealth();
-void readSpSensor(int32_t n);
-void driveMotor(int direction);
-void motorWakeUp();
-void motorOff();
-void tightenStrap();
-float strapTorque();
-void triggerSolenoid(int a);
-void vibrate();
-
-struct button {
-  boolean buttonVal = HIGH;   // value read from button
-  boolean buttonLast = HIGH;  // buffered value of the button's previous state
-  boolean DCwaiting = false;  // whether we're waiting for a double click (down)
-  boolean DConUp = false;     // whether to register a double click on next release, or whether to wait and click
-  boolean singleOK = true;    // whether it's OK to do a single click
-  long downTime = -1;         // time the button was pressed down
-  long upTime = -1;           // time the button was released
-  boolean ignoreUp = false;   // whether to ignore the button release because the click+hold was triggered
-  boolean waitForUp = false;        // when held, whether to wait for the up event
-  boolean holdEventPast = false;    // whether or not the hold event happened already
-  boolean longHoldEventPast = false; // whether or not the long hold event happened already
-};
-
-
+#include <main.hpp>
 
 void setup() {
 
@@ -226,6 +145,17 @@ void showTime() {
 
 // Check buttons
 void checkButtons() {
+
+  switch (stopButton.checkButton()) {
+    case 1:
+      Serial.println("Normal click");
+      break;
+
+    case 3:
+      Serial.println("Long click");
+      break;
+  }
+
   if (!digitalRead(BUTTON_POW)) {
     // Stop motors
     //rgbLedWrite(8, 255, 0, 0);
@@ -388,91 +318,4 @@ void vibrate() {
   digitalWrite(VIBRATE, HIGH);
   delay(500);
   digitalWrite(VIBRATE, LOW);
-}
-
-
-
-// Buttons states
-// Button timing variables
-int debounce = 20;          // ms debounce period to prevent flickering when pressing or releasing the button
-int DCgap = 250;            // max ms between clicks for a double click event
-int holdTime = 1000;        // ms hold period: how long to wait for press+hold event
-int longHoldTime = 3000;    // ms long hold period: how long to wait for press+hold event
-
-// Button variables
-boolean buttonVal = HIGH;   // value read from button
-boolean buttonLast = HIGH;  // buffered value of the button's previous state
-boolean DCwaiting = false;  // whether we're waiting for a double click (down)
-boolean DConUp = false;     // whether to register a double click on next release, or whether to wait and click
-boolean singleOK = true;    // whether it's OK to do a single click
-long downTime = -1;         // time the button was pressed down
-long upTime = -1;           // time the button was released
-boolean ignoreUp = false;   // whether to ignore the button release because the click+hold was triggered
-boolean waitForUp = false;        // when held, whether to wait for the up event
-boolean holdEventPast = false;    // whether or not the hold event happened already
-boolean longHoldEventPast = false;// whether or not the long hold event happened already
-
-int checkButton() {    
-   int event = 0;
-   buttonVal = digitalRead(BUTTON_POW);
-   // Button pressed down
-   if (buttonVal == LOW && buttonLast == HIGH && (millis() - upTime) > debounce)
-   {
-       downTime = millis();
-       ignoreUp = false;
-       waitForUp = false;
-       singleOK = true;
-       holdEventPast = false;
-       longHoldEventPast = false;
-       if ((millis()-upTime) < DCgap && DConUp == false && DCwaiting == true)  DConUp = true;
-       else  DConUp = false;
-       DCwaiting = false;
-   }
-   // Button released
-   else if (buttonVal == HIGH && buttonLast == LOW && (millis() - downTime) > debounce)
-   {        
-       if (not ignoreUp)
-       {
-           upTime = millis();
-           if (DConUp == false) DCwaiting = true;
-           else
-           {
-               event = 2;
-               DConUp = false;
-               DCwaiting = false;
-               singleOK = false;
-           }
-       }
-   }
-   // Test for normal click event: DCgap expired
-   if ( buttonVal == HIGH && (millis()-upTime) >= DCgap && DCwaiting == true && DConUp == false && singleOK == true && event != 2)
-   {
-       event = 1;
-       DCwaiting = false;
-   }
-   // Test for hold
-   if (buttonVal == LOW && (millis() - downTime) >= holdTime) {
-       // Trigger "normal" hold
-       if (not holdEventPast)
-       {
-           event = 3;
-           waitForUp = true;
-           ignoreUp = true;
-           DConUp = false;
-           DCwaiting = false;
-           //downTime = millis();
-           holdEventPast = true;
-       }
-       // Trigger "long" hold
-       if ((millis() - downTime) >= longHoldTime)
-       {
-           if (not longHoldEventPast)
-           {
-               event = 4;
-               longHoldEventPast = true;
-           }
-       }
-   }
-   buttonLast = buttonVal;
-   return event;
 }
