@@ -28,6 +28,10 @@ class MyButton {
         boolean _waitForUp = false;        // when held, whether to wait for the up event
         boolean _holdEventPast = false;    // whether or not the hold event happened already
         boolean _longHoldEventPast = false;// whether or not the long hold event happened already
+        constexpr static int debounce = 20;          // ms debounce period to prevent flickering when pressing or releasing the button
+        constexpr static int DCgap = 250;            // max ms between clicks for a double click event
+        constexpr static int holdTime = 1000;        // ms hold period: how long to wait for press+hold event
+        constexpr static int longHoldTime = 3000;    // ms long hold period: how long to wait for press+hold event
 };
 
 #endif

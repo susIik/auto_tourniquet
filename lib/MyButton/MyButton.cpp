@@ -1,12 +1,5 @@
 #include <MyButton.hpp>
 
-// Buttons states
-// Button timing variables
-int debounce = 20;          // ms debounce period to prevent flickering when pressing or releasing the button
-int DCgap = 250;            // max ms between clicks for a double click event
-int holdTime = 1000;        // ms hold period: how long to wait for press+hold event
-int longHoldTime = 3000;    // ms long hold period: how long to wait for press+hold event
-
 MyButton::MyButton(int pin) {
     _pin = pin;
 }
