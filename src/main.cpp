@@ -88,7 +88,7 @@ void setup() {
     senSerial.begin(115200, SERIAL_8N1, RXD2, TXD2);
 
     // PWM setup for motor
-    ledcAttach(DRIVE_EN, 20000, 11);
+    ledcAttach(DRIVE_EN, 16000, 11);
     ledcWrite(DRIVE_EN, 0); // MAX 2048 (2^11)
 
     // Sensor calibration
@@ -136,6 +136,7 @@ void loop() {
 
     checkButtons();
     optimizePower();
+
     // checkHealth();
 
     // u8g2.setPowerSave(0);
@@ -328,7 +329,7 @@ void driveMotor(int direction) {
         digitalWrite(DRIVE_PH, LOW); // Set direction -
     }
     // Set pwm value
-    ledcWrite(DRIVE_EN, 1000); // Use half of the speed
+    ledcWrite(DRIVE_EN, 2000); // Use half of the speed
 }
 
 // Wake up motor
