@@ -55,16 +55,10 @@ int MyButton::checkButton() {
             _DCwaiting = false;
             //_downTime = millis();
             _holdEventPast = true;
+        } else { // Continius hold
+            event = 4;
         }
-        // Trigger "long" hold
-        if ((millis() - _downTime) >= longHoldTime)
-        {
-            if (not _longHoldEventPast)
-            {
-                event = 4;
-                _longHoldEventPast = true;
-            }
-        }
+        
     }
     _buttonLast = _buttonVal;
     return event;
