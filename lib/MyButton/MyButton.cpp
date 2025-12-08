@@ -1,3 +1,11 @@
+/**
+ * File:        MyButton.cpp
+ * Author:      Evo Annus
+ * Created:     28.11.2025
+ *
+ * Description: MyButton class
+ */
+
 #include <MyButton.hpp>
 
 MyButton::MyButton(int pin) {
