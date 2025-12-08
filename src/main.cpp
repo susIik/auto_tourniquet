@@ -1,3 +1,11 @@
+/**
+ * File:        main.cpp
+ * Author:      Evo Annus
+ * Created:     08.12.2025
+ *
+ * Description: Tourniquet microcontroller main code
+ */
+
 #include "MAX30105.h"
 #include "MyButton.hpp"
 #include "spo2_algorithm.h"
