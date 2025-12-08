@@ -29,6 +29,7 @@ byte dataRequestMsg[] = {0xFD, 0x00, 0x00, 0x00, 0x00, 0x00};
 byte calibRequestMsg[] = {0xFE, 0x7A, 0x47, 0x46, 0x00, 0x00};
 int hrData[] = {255, 255, 255}; // High, Low, HR
 
+// Setup times
 unsigned long startMillis;
 unsigned long currentMillis;
 unsigned long activateMillis;
@@ -52,6 +53,7 @@ int8_t validHeartRate;             // indicator to show if the heart rate calcul
 
 HardwareSerial senSerial(0);
 
+// Setup Buttons
 MyButton powerButton(BUTTON_POW);
 MyButton stopButton(BUTTON_SCREEN);
 MyButton plussButton(BUTTON_PLUSS);
@@ -92,14 +94,14 @@ void setup() {
     ledcWrite(DRIVE_EN, 0); // MAX 2048 (2^11)
 
     // Sensor calibration
-    // calibrateHrSensor();
+    calibrateHrSensor();
 
     // Setup counting
     startMillis = millis();
     activateMillis = millis(); // Remove from here!!!!!*/
 
     // Setup SpO2 sensor
-    // particleSensor.begin(Wire, I2C_SPEED_FAST); //Use default I2C port, 400kHz speed
+    particleSensor.begin(Wire, I2C_SPEED_FAST); //Use default I2C port, 400kHz speed
 
     byte ledBrightness = 100; // Options: 0=Off to 255=50mA
     byte sampleAverage = 2;   // Options: 1, 2, 4, 8, 16, 32
@@ -108,8 +110,8 @@ void setup() {
     int pulseWidth = 215;     // Options: 69, 118, 215, 411
     int adcRange = 16384;     // Options: 2048, 4096, 8192, 16384
 
-    // particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
-    // readSpSensor(bufferLength);
+    particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
+    readSpSensor(bufferLength);
 
     // Output pins setup
     pinMode(N_SLEEP, OUTPUT);
@@ -261,6 +263,7 @@ void checkHealth() {
         readSpSensor(25);
         if (hrData[0] < 100 && spo2 < 90 && validSPO2) { // Last check if blood pressure and spo2 are low
             activation = 1;
+            activateMillis = millis(); // Fix activation time
             vibrate(); // Start tightening process
             tightenStrap(); 
         }
@@ -298,8 +301,7 @@ void driveMotor(int direction) {
     motorWakeUp();
     triggerSolenoid(1);
     digitalWrite(DRIVE_PH, direction == 1 ? HIGH : LOW);
-    // Set pwm value
-    ledcWrite(DRIVE_EN, 2000); // Use half of the speed
+    ledcWrite(DRIVE_EN, 1000); // Use half of the speed
 }
 
 // Wake up motor
@@ -356,7 +358,7 @@ void triggerSolenoid(int a) {
 // Vibrate
 void vibrate() {
     digitalWrite(VIBRATE, HIGH);
-    delay(500);
+    delay(500); // Vibrate for 0.5 seconds
     digitalWrite(VIBRATE, LOW);
 }
 
