@@ -125,6 +125,7 @@ void loop() {
     currentMillis = millis();
 
     checkButtons();
+    checkHealth();
     optimizePower();
 
 }
