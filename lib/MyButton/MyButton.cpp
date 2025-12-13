@@ -61,7 +61,6 @@ int MyButton::checkButton() {
             _ignoreUp = true;
             _DConUp = false;
             _DCwaiting = false;
-            //_downTime = millis();
             _holdEventPast = true;
         } else { // Continius hold
             event = 4;

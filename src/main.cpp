@@ -131,7 +131,6 @@ void setup() {
 
 void loop() {
     currentMillis = millis();
-
     checkButtons();
     checkHealth();
     optimizePower();
@@ -198,14 +197,14 @@ void checkButtons() {
     switch (stopButton.checkButton()) {
     case 1: // Click stop button
         Serial.println("Normal click STOP");
-        motorOff(); // Stop tightening process
-        activation = 0;
+        u8g2.setPowerSave(0); // Wake up screen
+        showTime();
         break;
 
     case 3: // Long hold stop button
         Serial.println("Long click STOP");
-        u8g2.setPowerSave(0); // Wake up screen
-        showTime();
+        motorOff(); // Stop tightening process
+        activation = 0;
         break;   
     }
 
@@ -356,7 +355,7 @@ void tightenStrap() {
 
 // Calculate strap torque
 float strapTorque() {
-    return analogRead(IPROPI) * 16 / 3760 * k_t; // must multiply by something ADC value != Current value
+    return analogRead(IPROPI) * 16 / 3760 * k_t; // Calculate current
 }
 
 // Activate solenoid
