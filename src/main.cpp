@@ -21,7 +21,7 @@ static constexpr uint8_t SCL_PIN = 7;
 static constexpr uint8_t BUTTON_POW = 9;
 static constexpr uint8_t BUTTON_PLUSS = 10;
 static constexpr uint8_t BUTTON_MINUS = 11;
-static constexpr uint8_t BUTTON_SCREEN = 8;
+static constexpr uint8_t BUTTON_STOP = 8;
 static constexpr uint8_t N_SLEEP = 21;
 static constexpr uint8_t N_FAULT = 20;
 static constexpr uint8_t IPROPI = 3;
@@ -46,14 +46,14 @@ unsigned long screenWakeMillis = 0;
 
 float k_t = 0.44 / 2.7; // Torque constant
 int activation = 0;     // 0 - off, 1 - tightening in progress, 2 - tightened
-int adjusting = 0;
+int adjusting = 0;      // Indicator if + or - button is pressed
 
 // particlesensor test stuff
 MAX30105 particleSensor;
 
 static constexpr uint32_t bufferLength = 100;
-uint32_t irBuffer[bufferLength];     // infrared LED sensor data
-uint32_t redBuffer[bufferLength];    // red LED sensor data
+uint32_t irBuffer[bufferLength];   // infrared LED sensor data
+uint32_t redBuffer[bufferLength];  // red LED sensor data
 int32_t spo2;                      // SPO2 value
 int8_t validSPO2;                  // indicator to show if the SPO2 calculation is valid
 int32_t heartRate;                 // heart rate value
@@ -63,7 +63,7 @@ HardwareSerial senSerial(0);
 
 // Setup Buttons
 MyButton powerButton(BUTTON_POW);
-MyButton stopButton(BUTTON_SCREEN);
+MyButton stopButton(BUTTON_STOP);
 MyButton plussButton(BUTTON_PLUSS);
 MyButton minusButton(BUTTON_MINUS);
 
@@ -106,7 +106,6 @@ void setup() {
 
     // Setup counting
     startMillis = millis();
-    activateMillis = millis(); // Remove from here!!!!!*/
 
     // Setup SpO2 sensor
     particleSensor.begin(Wire, I2C_SPEED_FAST); //Use default I2C port, 400kHz speed
@@ -134,7 +133,6 @@ void loop() {
     checkButtons();
     checkHealth();
     optimizePower();
-
 }
 
 // Read sensor data
@@ -271,7 +269,7 @@ void checkHealth() {
         readSpSensor(25);
         if (hrData[0] < 100 && spo2 < 90 && validSPO2) { // Last check if blood pressure and spo2 are low
             activation = 1;
-            activateMillis = millis(); // Fix activation time
+            activateMillis = millis(); // Save activation time
             vibrate(); // Start tightening process
             tightenStrap(); 
         }
@@ -347,7 +345,7 @@ void calibrateHrSensor() {
 // Tighten Strap
 void tightenStrap() {
     driveMotor(1);
-    if (strapTorque() > 0.38) { // If torque is reaches set value stop motors
+    if (strapTorque() > 0.4) { // If torque is reaches set value stop motors
         motorOff();
         activation = 2;
     }
