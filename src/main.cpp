@@ -75,7 +75,7 @@ void showTime();
 void checkButtons();
 void checkHealth();
 void readSpSensor(int32_t n);
-void driveMotor(int direction);
+void driveMotor(int direction, int duty);
 void motorWakeUp();
 void motorOff();
 void tightenStrap();
@@ -102,13 +102,13 @@ void setup() {
     ledcWrite(DRIVE_EN, 0); // MAX 2048 (2^11)
 
     // Sensor calibration
-    calibrateHrSensor();
+    //calibrateHrSensor();
 
     // Setup counting
     startMillis = millis();
 
     // Setup SpO2 sensor
-    particleSensor.begin(Wire, I2C_SPEED_FAST); //Use default I2C port, 400kHz speed
+    //particleSensor.begin(Wire, I2C_SPEED_FAST); //Use default I2C port, 400kHz speed
 
     byte ledBrightness = 100; // Options: 0=Off to 255=50mA
     byte sampleAverage = 2;   // Options: 1, 2, 4, 8, 16, 32
@@ -117,8 +117,8 @@ void setup() {
     int pulseWidth = 215;     // Options: 69, 118, 215, 411
     int adcRange = 16384;     // Options: 2048, 4096, 8192, 16384
 
-    particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
-    readSpSensor(bufferLength);
+    //particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
+    //readSpSensor(bufferLength);
 
     // Output pins setup
     pinMode(N_SLEEP, OUTPUT);
@@ -131,7 +131,7 @@ void setup() {
 void loop() {
     currentMillis = millis();
     checkButtons();
-    checkHealth();
+    //checkHealth();
     optimizePower();
 }
 
@@ -202,6 +202,7 @@ void checkButtons() {
     case 3: // Long hold stop button
         Serial.println("Long click STOP");
         motorOff(); // Stop tightening process
+        digitalWrite(VIBRATE, HIGH);
         activation = 0;
         break;   
     }
@@ -221,19 +222,20 @@ void checkButtons() {
     switch (minusButton.checkButton()) {
     case 1:
         Serial.println("Normal click MINUS");
+        driveMotor(1, 1000);
         break;
 
     case 4: // Hold minus button
         //Serial.println("Continius MINUS");
-        if (adjusting != 2) { // If pluss button is not being held down drive motor
-            driveMotor(0);
+        if (adjusting != 2 && activation != 1) { // If pluss button is not being held down drive motor
+            driveMotor(0, 1000);
             adjusting = 1;
         }
         break;
 
     default:
-        if (adjusting != 2) { // If pluss button is not being held down switch motor off
-            motorOff();
+        if (adjusting != 2 && activation != 1) { // If pluss button is not being held down switch motor off
+            //motorOff();
             adjusting = 0;
         }
     }
@@ -241,19 +243,20 @@ void checkButtons() {
     switch (plussButton.checkButton()) {
     case 1:
         Serial.println("Normal click PLUS");
+        driveMotor(0, 1000);
         break;
 
     case 4: // Hold pluss button
         //Serial.println("Continius PLUS");
-        if (adjusting != 1) { // If minus button is not being held down drive motor
-            driveMotor(1);
+        if (adjusting != 1 && activation != 1) { // If minus button is not being held down drive motor
+            driveMotor(1, 1000);
             adjusting = 2;
         }
         break;
 
     default:
-        if (adjusting != 1) { // If minus button is not being held down switch motor off
-            motorOff();
+        if (adjusting != 1 && activation != 1) { // If minus button is not being held down switch motor off
+            //motorOff();
             adjusting = 0;
         }
     }
@@ -303,18 +306,18 @@ void readSpSensor(int32_t n) {
 }
 
 // Drive motor
-void driveMotor(int direction) {
+void driveMotor(int direction, int duty) {
     motorWakeUp();
     triggerSolenoid(1);
     digitalWrite(DRIVE_PH, direction == 1 ? HIGH : LOW);
-    ledcWrite(DRIVE_EN, 1000); // Use half of the speed
+    ledcWrite(DRIVE_EN, duty); // Use half of the speed
 }
 
 // Wake up motor
 void motorWakeUp() {
     if (digitalRead(N_SLEEP) == LOW) { // If not awake, start with wake up sequence
         digitalWrite(N_SLEEP, HIGH);
-        delay(1);
+        delay(2);
         digitalWrite(N_SLEEP, LOW);
         delayMicroseconds(25);
         digitalWrite(N_SLEEP, HIGH);
@@ -344,7 +347,7 @@ void calibrateHrSensor() {
 
 // Tighten Strap
 void tightenStrap() {
-    driveMotor(1);
+    driveMotor(1, 1000);
     if (strapTorque() > 0.4) { // If torque is reaches set value stop motors
         motorOff();
         activation = 2;
