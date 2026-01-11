@@ -202,7 +202,7 @@ void checkButtons() {
     case 3: // Long hold stop button
         Serial.println("Long click STOP");
         motorOff(); // Stop tightening process
-        digitalWrite(VIBRATE, HIGH);
+        vibrate();
         activation = 0;
         break;   
     }
@@ -214,6 +214,8 @@ void checkButtons() {
 
     case 3: // Long hold power button
         Serial.println("Long click POWER");
+        activateMillis = millis();
+        activation = 1;
         vibrate(); // Manual tighten strap
         tightenStrap();
         break;
@@ -222,7 +224,7 @@ void checkButtons() {
     switch (minusButton.checkButton()) {
     case 1:
         Serial.println("Normal click MINUS");
-        driveMotor(1, 1000);
+        //driveMotor(1, 1000);
         break;
 
     case 4: // Hold minus button
@@ -238,12 +240,13 @@ void checkButtons() {
             //motorOff();
             adjusting = 0;
         }
+        break;
     }
 
     switch (plussButton.checkButton()) {
     case 1:
         Serial.println("Normal click PLUS");
-        driveMotor(0, 1000);
+        //driveMotor(0, 1000);
         break;
 
     case 4: // Hold pluss button
@@ -256,9 +259,10 @@ void checkButtons() {
 
     default:
         if (adjusting != 1 && activation != 1) { // If minus button is not being held down switch motor off
-            //motorOff();
+            motorOff();
             adjusting = 0;
         }
+        break;
     }
 }
 
@@ -356,7 +360,7 @@ void tightenStrap() {
 
 // Calculate strap torque
 float strapTorque() {
-    return analogRead(IPROPI) * 16 / 3760 * k_t; // Calculate current
+    return 0.2; //analogRead(IPROPI) * 16 / 3760 * k_t; // Calculate current
 }
 
 // Activate solenoid
