@@ -179,13 +179,19 @@ bool calibrateHrSequence() {
 
 // Show time
 void showTime() {
-    u8g2.setFont(u8g2_font_6x13_tf); // Set up screen
+    //u8g2.setFont(u8g2_font_6x13_tf); // Set up screen
     u8g2.clearBuffer();
     screenWakeMillis = millis();
     String minutes = (String)((screenWakeMillis - activateMillis) / 1000 / 60) + " min"; // Calculate minutes passed
 
-    u8g2.drawStr(0, 20, "Time since activated"); 
-    u8g2.drawStr(30, 40, minutes.c_str()); // Display minutes 
+    if (activation == 2) {
+        u8g2.setFont(u8g2_font_ImpactBits_tr);
+        u8g2.drawStr(30, 20, "Activated"); 
+        u8g2.drawStr(45, 50, minutes.c_str()); // Display minutes 
+    } else {
+        u8g2.setFont(u8g2_font_ImpactBits_tr);
+        u8g2.drawStr(20, 35, "Not activated");
+    }
     u8g2.sendBuffer();
 }
 
@@ -219,6 +225,12 @@ void checkButtons() {
         vibrate(); // Manual tighten strap
         tightenStrap();
         break;
+
+    default:
+        if (activation == 1) { // If pluss button is not being held down switch motor off
+            tightenStrap();
+        }
+        break;
     }
 
     switch (minusButton.checkButton()) {
@@ -230,14 +242,14 @@ void checkButtons() {
     case 4: // Hold minus button
         //Serial.println("Continius MINUS");
         if (adjusting != 2 && activation != 1) { // If pluss button is not being held down drive motor
-            driveMotor(0, 1000);
+            driveMotor(1, 500);
             adjusting = 1;
         }
         break;
 
     default:
         if (adjusting != 2 && activation != 1) { // If pluss button is not being held down switch motor off
-            //motorOff();
+            motorOff();
             adjusting = 0;
         }
         break;
@@ -252,7 +264,7 @@ void checkButtons() {
     case 4: // Hold pluss button
         //Serial.println("Continius PLUS");
         if (adjusting != 1 && activation != 1) { // If minus button is not being held down drive motor
-            driveMotor(1, 1000);
+            driveMotor(0, 1000);
             adjusting = 2;
         }
         break;
@@ -282,7 +294,7 @@ void checkHealth() {
         }
     }
     
-    if (activation == 1) { // Continue tightening
+    if (activation == 1) { // Continue tightening?
         tightenStrap();
     }
 }
@@ -351,8 +363,8 @@ void calibrateHrSensor() {
 
 // Tighten Strap
 void tightenStrap() {
-    driveMotor(1, 1000);
-    if (strapTorque() > 0.4) { // If torque is reaches set value stop motors
+    driveMotor(0, 2000);
+    if (strapTorque() > 0.095 && millis() - activateMillis > 1000) { // If torque is reaches set value stop motors. real val 0.4
         motorOff();
         activation = 2;
     }
@@ -360,7 +372,7 @@ void tightenStrap() {
 
 // Calculate strap torque
 float strapTorque() {
-    return 0.2; //analogRead(IPROPI) * 16 / 3760 * k_t; // Calculate current
+    return analogRead(IPROPI) * 16 / 3760 * k_t; // Calculate torque
 }
 
 // Activate solenoid
