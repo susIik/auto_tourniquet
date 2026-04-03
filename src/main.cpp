@@ -30,6 +30,7 @@ static constexpr uint8_t DRIVE_EN = 22;
 static constexpr uint8_t SOLENOID = 18;
 static constexpr uint8_t VIBRATE = 19;
 static constexpr uint8_t DRVOFF = 2;
+static constexpr uint8_t BATTERY = 1; // 0.6V ... 0.53V
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE, /* clock=*/SCL_PIN, /* data=*/SDA_PIN); // High speed I2C
 
@@ -83,6 +84,7 @@ float strapTorque();
 void triggerSolenoid(int a);
 void vibrate();
 void optimizePower();
+int batteryLevel();
 
 void setup() {
     // Hr sensor and Serial Monitor setup
@@ -126,6 +128,9 @@ void setup() {
     pinMode(SOLENOID, OUTPUT);
     pinMode(VIBRATE, OUTPUT);
     pinMode(DRVOFF, OUTPUT);
+
+    // Remove analog signal scaling
+    analogSetAttenuation(ADC_0db);
 }
 
 void loop() {
@@ -183,6 +188,13 @@ void showTime() {
     u8g2.clearBuffer();
     screenWakeMillis = millis();
     String minutes = (String)((screenWakeMillis - activateMillis) / 1000 / 60) + " min"; // Calculate minutes passed
+
+    int bat = batteryLevel();
+    u8g2.drawFrame(1, 1, 20, 10);
+    u8g2.drawFrame(20, 3, 4, 6);
+    u8g2.drawBox(1, 1, 20 * bat / 100.0, 10); // Show battery indicator
+    u8g2.setFont(u8g2_font_helvR08_tf);
+    u8g2.drawStr(30, 10, ((String)bat + "%").c_str()); // Show battery % in numbers
 
     if (activation == 2) {
         u8g2.setFont(u8g2_font_ImpactBits_tr);
@@ -372,7 +384,7 @@ void tightenStrap() {
 
 // Calculate strap torque
 float strapTorque() {
-    return analogRead(IPROPI) * 16 / 3760 * k_t; // Calculate torque
+    return analogRead(IPROPI) * 0.2 / 3723 * k_t; // Calculate torque
 }
 
 // Activate solenoid
@@ -392,4 +404,10 @@ void optimizePower() {
     if (millis() - screenWakeMillis > 10000) { // Turn off screen when 10 sec passed
         u8g2.setPowerSave(1);
     }
+}
+
+// Calculate battery level in %
+int batteryLevel() {
+    // Max 2234, min 1973, diff 261
+    return max((analogRead(BATTERY) - 1973) * 100 / 261, 0);
 }
